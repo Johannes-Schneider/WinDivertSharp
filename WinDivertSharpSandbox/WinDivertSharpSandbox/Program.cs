@@ -85,7 +85,7 @@ namespace WinDivertSharpSandbox
             WinDivert.WinDivertClose(handle);
         }
 
-        private static void RunDiversion(IntPtr handle)
+        private static unsafe void RunDiversion(IntPtr handle)
         {
             var packet = new WinDivertBuffer();
 
@@ -93,12 +93,12 @@ namespace WinDivertSharpSandbox
 
             uint readLen = 0;
 
-            IPv4Header? ipv4Header = null;
-            IPv6Header? ipv6Header = null;
-            IcmpV4Header? icmpV4Header = null;
-            IcmpV6Header? icmpV6Header = null;
-            TcpHeader? tcpHeader = null;
-            UdpHeader? udpHeader = null;
+            IPv4Header* ipv4Header = null;
+            IPv6Header* ipv6Header = null;
+            IcmpV4Header* icmpV4Header = null;
+            IcmpV6Header* icmpV6Header = null;
+            TcpHeader* tcpHeader = null;
+            UdpHeader* udpHeader = null;
 
             Span<byte> packetData = null;
 
@@ -111,13 +111,6 @@ namespace WinDivertSharpSandbox
             {
                 if (s_running)
                 {
-                    ipv4Header = null;
-                    ipv6Header = null;
-                    icmpV4Header = null;
-                    icmpV6Header = null;
-                    tcpHeader = null;
-                    udpHeader = null;
-
                     packetData = null;
 
                     readLen = 0;
@@ -168,7 +161,13 @@ namespace WinDivertSharpSandbox
 
                     Console.WriteLine("Read packet {0}", readLen);
 
-                    WinDivert.WinDivertHelperParsePacket(packet, readLen, ref ipv4Header, ref ipv6Header, ref icmpV4Header, ref icmpV6Header, ref tcpHeader, ref udpHeader, ref packetData);
+                    var parseResult = WinDivert.WinDivertHelperParsePacket(packet, readLen);
+                    ipv4Header = parseResult.IPv4Header;
+                    ipv6Header = parseResult.IPv6Header;
+                    icmpV4Header = parseResult.IcmpV4Header;
+                    icmpV6Header = parseResult.IcmpV6Header;
+                    tcpHeader = parseResult.TcpHeader;
+                    udpHeader = parseResult.UdpHeader;
 
                     if (addr.Direction == WinDivertDirection.Inbound)
                     {
@@ -177,11 +176,11 @@ namespace WinDivertSharpSandbox
 
                     if (ipv4Header != null && tcpHeader != null)
                     {
-                        Console.WriteLine($"V4 TCP packet {addr.Direction} from {ipv4Header.Value.SrcAddr}:{tcpHeader.Value.SrcPort.SwapByteOrder()} to {ipv4Header.Value.DstAddr}:{tcpHeader.Value.DstPort.SwapByteOrder()}");
+                        Console.WriteLine($"V4 TCP packet {addr.Direction} from {ipv4Header->SrcAddr}:{tcpHeader->SrcPort.ReverseBytes()} to {ipv4Header->DstAddr}:{tcpHeader->DstPort.ReverseBytes()}");
                     }
                     else if (ipv6Header != null && tcpHeader != null)
                     {
-                        Console.WriteLine($"V4 TCP packet {addr.Direction} from {ipv6Header.Value.SrcAddr}:{tcpHeader.Value.SrcPort.SwapByteOrder()} to {ipv6Header.Value.DstAddr}:{tcpHeader.Value.DstPort.SwapByteOrder()}");
+                        Console.WriteLine($"V4 TCP packet {addr.Direction} from {ipv6Header->SrcAddr}:{tcpHeader->SrcPort.ReverseBytes()} to {ipv6Header->DstAddr}:{tcpHeader->DstPort.ReverseBytes()}");
                     }
 
                     if (packetData != null)
