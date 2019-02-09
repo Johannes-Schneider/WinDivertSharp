@@ -47,20 +47,13 @@ namespace WinDivertSharp
         /// </summary>
         static WinDivertNative()
         {
-            // Modify PATH var to include our WinDivert DLL's so that the LoadLibrary function will
-            // find whatever WinDivert dll required for the current architecture.
-            var path = new[] { Environment.GetEnvironmentVariable("PATH") ?? string.Empty };
-
-            var dllSearchPaths = new[]
-            {
-                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "x86"),
-                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "x64"),
-            };
-
-            string newPath = string.Join(Path.PathSeparator.ToString(), path.Concat(dllSearchPaths));
-
-            Environment.SetEnvironmentVariable("PATH", newPath);
+            SetDllDirectory(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "WinDivert",
+                Environment.Is64BitProcess ? "x64" : "x86"));
         }
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool SetDllDirectory(string lpPathName);
 
         /// Return Type: HANDLE->void*
         ///filter: char*
