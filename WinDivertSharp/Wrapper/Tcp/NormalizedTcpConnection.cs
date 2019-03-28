@@ -29,10 +29,25 @@ namespace WinDivertSharp.Wrapper.Tcp
         /// </summary>
         public ushort ServerPort { get; private set; }
 
+        private int _clientProcessId = 0;
+        private bool _clientProcessIdFetched = false;
+
         /// <summary>
         /// The process id of the client process.
         /// </summary>
-        public int ClientProcessId { get; private set; }
+        public int ClientProcessId
+        {
+            get
+            {
+                if (!_clientProcessIdFetched)
+                {
+                    _clientProcessId = IPHelper.MapLocalPortToProcessId(ClientPort, IPHelper.AddressVersion.IPv4);
+                    _clientProcessIdFetched = true;
+                }
+
+                return _clientProcessId;
+            }
+        }
 
         private int _cachedHashCode = 0;
 
@@ -57,8 +72,7 @@ namespace WinDivertSharp.Wrapper.Tcp
                         ClientIPAddress = tcpPacket.IPHeader.DstAddr,
                         ClientPort = tcpPacket.TcpHeader.DstPort.ReverseBytes(),
                         ServerIPAddress = tcpPacket.IPHeader.SrcAddr,
-                        ServerPort = tcpPacket.TcpHeader.SrcPort.ReverseBytes(),
-                        ClientProcessId = IPHelper.MapLocalPortToProcessId(tcpPacket.TcpHeader.DstPort.ReverseBytes(), IPHelper.AddressVersion.IPv4)
+                        ServerPort = tcpPacket.TcpHeader.SrcPort.ReverseBytes()
                     };
                 }
                 case WinDivertDirection.Outbound:
@@ -68,8 +82,7 @@ namespace WinDivertSharp.Wrapper.Tcp
                         ClientIPAddress = tcpPacket.IPHeader.SrcAddr,
                         ClientPort = tcpPacket.TcpHeader.SrcPort.ReverseBytes(),
                         ServerIPAddress = tcpPacket.IPHeader.DstAddr,
-                        ServerPort = tcpPacket.TcpHeader.DstPort.ReverseBytes(),
-                        ClientProcessId = IPHelper.MapLocalPortToProcessId(tcpPacket.TcpHeader.SrcPort.ReverseBytes(), IPHelper.AddressVersion.IPv4)
+                        ServerPort = tcpPacket.TcpHeader.DstPort.ReverseBytes()
                     };
                 }
                 default:
