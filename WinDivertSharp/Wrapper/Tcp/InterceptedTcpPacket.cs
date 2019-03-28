@@ -6,7 +6,7 @@ namespace WinDivertSharp.Wrapper.Tcp
     /// <summary>
     /// Represents an intercepted ipv4/tcp packet.
     /// </summary>
-    public unsafe class InterceptedTcpPacket
+    public unsafe class InterceptedTcpPacket : IDisposable
     {
         private WinDivertAddress _winDivertAddress;
 
@@ -32,12 +32,12 @@ namespace WinDivertSharp.Wrapper.Tcp
         /// <summary>
         /// The intercepted <seealso cref="IPv4Header"/>.
         /// </summary>
-        public IPv4Header IPHeader => *WinDivertParseResult.IPv4Header;
+        public IPv4Header* IPHeader => WinDivertParseResult.IPv4Header;
 
         /// <summary>
         /// The intercepted <seealso cref="TcpHeader"/>.
         /// </summary>
-        public TcpHeader TcpHeader => *WinDivertParseResult.TcpHeader;
+        public TcpHeader* TcpHeader => WinDivertParseResult.TcpHeader;
 
         /// <summary>
         /// The intercepted <seealso cref="Direction"/>.
@@ -64,13 +64,13 @@ namespace WinDivertSharp.Wrapper.Tcp
         public bool ShouldBeDropped { get; private set; } = false;
 
         /// <summary>
-        /// Receives the next packet in the queue of the given <paramref name="winDivertHandle"/>.
+        /// Receives the next packet in the queue of the given <paramref name="wrapper"/>.
         /// </summary>
-        /// <param name="winDivertHandle">The win divert handle to receive from.</param>
+        /// <param name="wrapper">The <seealso cref="WinDivertNetworkWrapper"/> to receive from.</param>
         /// <returns>A new <seealso cref="InterceptedTcpPacket"/>.</returns>
-        public static unsafe InterceptedTcpPacket Receive(IntPtr winDivertHandle)
+        internal static unsafe InterceptedTcpPacket Receive(WinDivertNetworkWrapper wrapper)
         {
-            if (winDivertHandle.ToInt64() < 1)
+            if (wrapper.Handle.ToInt64() < 1)
             {
                 return null;
             }
@@ -79,7 +79,7 @@ namespace WinDivertSharp.Wrapper.Tcp
             var buffer = new WinDivertBuffer();
             var packetLength = 0u;
 
-            if (!WinDivert.WinDivertRecv(winDivertHandle, buffer, ref address, ref packetLength))
+            if (!WinDivert.WinDivertRecv(wrapper.Handle, buffer, ref address, ref packetLength))
             {
                 return null;
             }
@@ -93,7 +93,7 @@ namespace WinDivertSharp.Wrapper.Tcp
                 return null;
             }
 
-            return new InterceptedTcpPacket()
+            return new InterceptedTcpPacket(wrapper)
             {
                 WinDivertAddress = address,
                 WinDivertBuffer = buffer,
@@ -102,8 +102,17 @@ namespace WinDivertSharp.Wrapper.Tcp
             };
         }
 
-        private InterceptedTcpPacket()
-        { }
+        private readonly WinDivertNetworkWrapper _winDivertWrapper;
+
+        private InterceptedTcpPacket(WinDivertNetworkWrapper wrapper)
+        {
+            _winDivertWrapper = wrapper ?? throw new ArgumentNullException(nameof(wrapper));
+
+            if (!wrapper.IsOpen)
+            {
+                throw new ArgumentException($"{nameof(wrapper)}.{nameof(wrapper.IsOpen)} = false");
+            }
+        }
 
         /// <summary>
         /// Set the <seealso cref="HasBeenModified"/> flag.
@@ -137,17 +146,17 @@ namespace WinDivertSharp.Wrapper.Tcp
             {
                 case WinDivertDirection.Inbound:
                     {
-                        return IPHeader.SrcAddr.Equals(tcpConnection.ServerIPAddress) &&
-                               TcpHeader.SrcPort.ReverseBytes() == tcpConnection.ServerPort &&
-                               IPHeader.DstAddr.Equals(tcpConnection.ClientIPAddress) &&
-                               TcpHeader.DstPort.ReverseBytes() == tcpConnection.ClientPort;
+                        return IPHeader->SrcAddr.Equals(tcpConnection.ServerIPAddress) &&
+                               TcpHeader->SrcPort.ReverseBytes() == tcpConnection.ServerPort &&
+                               IPHeader->DstAddr.Equals(tcpConnection.ClientIPAddress) &&
+                               TcpHeader->DstPort.ReverseBytes() == tcpConnection.ClientPort;
                     }
                 case WinDivertDirection.Outbound:
                     {
-                        return IPHeader.SrcAddr.Equals(tcpConnection.ClientIPAddress) &&
-                               TcpHeader.SrcPort.ReverseBytes() == tcpConnection.ClientPort &&
-                               IPHeader.DstAddr.Equals(tcpConnection.ServerIPAddress) &&
-                               TcpHeader.DstPort.ReverseBytes() == tcpConnection.ServerPort;
+                        return IPHeader->SrcAddr.Equals(tcpConnection.ClientIPAddress) &&
+                               TcpHeader->SrcPort.ReverseBytes() == tcpConnection.ClientPort &&
+                               IPHeader->DstAddr.Equals(tcpConnection.ServerIPAddress) &&
+                               TcpHeader->DstPort.ReverseBytes() == tcpConnection.ServerPort;
                     }
                 default:
                     {
@@ -157,21 +166,18 @@ namespace WinDivertSharp.Wrapper.Tcp
         }
 
         /// <summary>
-        /// Sends the packet using the given <paramref name="winDivertHandle"/>.
+        /// Sends the packet.
         /// </summary>
-        /// <param name="winDivertHandle">The win divert handle to insert the packet to.</param>
         /// <returns>True, if the packet has been sent.</returns>
-        public bool Send(IntPtr winDivertHandle)
+        public bool Send()
         {
-            if (winDivertHandle.ToInt64() < 1)
+            if (!_winDivertWrapper.IsOpen)
             {
-                WinDivertBuffer?.Dispose();
                 return false;
             }
 
             if (ShouldBeDropped)
             {
-                WinDivertBuffer?.Dispose();
                 return true;
             }
 
@@ -182,14 +188,20 @@ namespace WinDivertSharp.Wrapper.Tcp
                     WinDivertChecksumHelperParam.NoUdpChecksum);
             }
 
-            if (!WinDivert.WinDivertSend(winDivertHandle, WinDivertBuffer, PacketLength, ref _winDivertAddress))
+            if (!WinDivert.WinDivertSend(_winDivertWrapper.Handle, WinDivertBuffer, PacketLength, ref _winDivertAddress))
             {
-                WinDivertBuffer?.Dispose();
                 return false;
             }
 
-            WinDivertBuffer?.Dispose();
             return true;
+        }
+
+        /// <summary>
+        /// Disposes this packet.
+        /// </summary>
+        public void Dispose()
+        {
+            WinDivertBuffer?.Dispose();
         }
     }
 }

@@ -56,7 +56,7 @@ namespace WinDivertSharp.Wrapper.Tcp
         /// </summary>
         /// <param name="tcpPacket">The <seealso cref="InterceptedTcpPacket"/> to create a new <seealso cref="NormalizedTcpConnection"/> from.</param>
         /// <returns>A new <seealso cref="NormalizedTcpConnection"/> based on the given <paramref name="tcpPacket"/>.</returns>
-        public static NormalizedTcpConnection CreateFromInterceptedPacket(InterceptedTcpPacket tcpPacket)
+        public static unsafe NormalizedTcpConnection CreateFromInterceptedPacket(InterceptedTcpPacket tcpPacket)
         {
             if (tcpPacket == null)
             {
@@ -69,20 +69,20 @@ namespace WinDivertSharp.Wrapper.Tcp
                 {
                     return new NormalizedTcpConnection()
                     {
-                        ClientIPAddress = tcpPacket.IPHeader.DstAddr,
-                        ClientPort = tcpPacket.TcpHeader.DstPort.ReverseBytes(),
-                        ServerIPAddress = tcpPacket.IPHeader.SrcAddr,
-                        ServerPort = tcpPacket.TcpHeader.SrcPort.ReverseBytes()
+                        ClientIPAddress = tcpPacket.IPHeader->DstAddr,
+                        ClientPort = tcpPacket.TcpHeader->DstPort.ReverseBytes(),
+                        ServerIPAddress = tcpPacket.IPHeader->SrcAddr,
+                        ServerPort = tcpPacket.TcpHeader->SrcPort.ReverseBytes()
                     };
                 }
                 case WinDivertDirection.Outbound:
                 {
                     return new NormalizedTcpConnection()
                     {
-                        ClientIPAddress = tcpPacket.IPHeader.SrcAddr,
-                        ClientPort = tcpPacket.TcpHeader.SrcPort.ReverseBytes(),
-                        ServerIPAddress = tcpPacket.IPHeader.DstAddr,
-                        ServerPort = tcpPacket.TcpHeader.DstPort.ReverseBytes()
+                        ClientIPAddress = tcpPacket.IPHeader->SrcAddr,
+                        ClientPort = tcpPacket.TcpHeader->SrcPort.ReverseBytes(),
+                        ServerIPAddress = tcpPacket.IPHeader->DstAddr,
+                        ServerPort = tcpPacket.TcpHeader->DstPort.ReverseBytes()
                     };
                 }
                 default:
