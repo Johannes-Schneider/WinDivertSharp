@@ -3,7 +3,7 @@ using WinDivertSharp.Wrapper.Tcp;
 
 namespace WinDivertSharp.Wrapper
 {
-    public class WinDivertNetworkWrapper
+    public class WinDivertTcp4Wrapper : IWinDivertWrapper<InterceptedTcp4Packet>
     {
         public string Filter { get; private set; }
 
@@ -13,7 +13,7 @@ namespace WinDivertSharp.Wrapper
 
         internal IntPtr Handle { get; private set; } = IntPtr.Zero;
 
-        public WinDivertNetworkWrapper(string filter, short priority = 0)
+        public WinDivertTcp4Wrapper(string filter, short priority = 0)
         {
             Filter = filter;
             Priority = priority;
@@ -39,14 +39,29 @@ namespace WinDivertSharp.Wrapper
             return true;
         }
 
-        public InterceptedTcpPacket ReceiveTcpPacket()
+        public InterceptedTcp4Packet Receive()
         {
             if (!IsOpen)
             {
                 throw new InvalidOperationException($"{nameof(IsOpen)} = false");
             }
 
-            return InterceptedTcpPacket.Receive(this);
+            return InterceptedTcp4Packet.Receive(this);
+        }
+
+        public bool Send(InterceptedTcp4Packet packet)
+        {
+            if (packet == null)
+            {
+                throw new ArgumentNullException(nameof(packet));
+            }
+
+            if (!IsOpen)
+            {
+                return false;
+            }
+
+            return packet.Send(Handle);
         }
 
         public bool Close()

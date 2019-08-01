@@ -29,65 +29,54 @@ namespace WinDivertSharp.Wrapper.Tcp
         /// </summary>
         public ushort ServerPort { get; private set; }
 
-        private int _clientProcessId = 0;
-        private bool _clientProcessIdFetched = false;
-
         /// <summary>
         /// The process id of the client process.
         /// </summary>
-        public int ClientProcessId
-        {
-            get
-            {
-                if (!_clientProcessIdFetched)
-                {
-                    _clientProcessId = IPHelper.MapLocalPortToProcessId(ClientPort, IPHelper.AddressVersion.IPv4);
-                    _clientProcessIdFetched = true;
-                }
+        public int ClientProcessId =>
+            new Lazy<int>(() => IPHelper.MapLocalPortToProcessId(ClientPort, _ipAddressVersion)).Value;
 
-                return _clientProcessId;
-            }
-        }
-
+        private IPHelper.AddressVersion _ipAddressVersion;
         private int _cachedHashCode = 0;
 
         /// <summary>
-        /// Creates a new <seealso cref="NormalizedTcpConnection"/> from the given <paramref name="tcpPacket"/>.
+        /// Creates a new <seealso cref="NormalizedTcpConnection"/> from the given <paramref name="packet"/>.
         /// </summary>
-        /// <param name="tcpPacket">The <seealso cref="InterceptedTcpPacket"/> to create a new <seealso cref="NormalizedTcpConnection"/> from.</param>
-        /// <returns>A new <seealso cref="NormalizedTcpConnection"/> based on the given <paramref name="tcpPacket"/>.</returns>
-        public static unsafe NormalizedTcpConnection CreateFromInterceptedPacket(InterceptedTcpPacket tcpPacket)
+        /// <param name="packet">The <seealso cref="IWinDivertTcpPacketWrapper"/> to create a new <seealso cref="NormalizedTcpConnection"/> from.</param>
+        /// <returns>A new <seealso cref="NormalizedTcpConnection"/> based on the given <paramref name="packet"/>.</returns>
+        public static NormalizedTcpConnection CreateFromInterceptedPacket(IWinDivertTcpPacketWrapper packet)
         {
-            if (tcpPacket == null)
+            if (packet == null)
             {
-                return null;
+                throw new ArgumentNullException(nameof(packet));
             }
 
-            switch (tcpPacket.WinDivertAddress.Direction)
+            switch (packet.Direction)
             {
                 case WinDivertDirection.Inbound:
                 {
                     return new NormalizedTcpConnection()
                     {
-                        ClientIPAddress = tcpPacket.IPHeader->DstAddr,
-                        ClientPort = tcpPacket.TcpHeader->DstPort.ReverseBytes(),
-                        ServerIPAddress = tcpPacket.IPHeader->SrcAddr,
-                        ServerPort = tcpPacket.TcpHeader->SrcPort.ReverseBytes()
+                        _ipAddressVersion = packet.IPAddressVersion,
+                        ClientIPAddress = packet.DestinationAddress,
+                        ClientPort = packet.DestinationPort,
+                        ServerIPAddress = packet.SourceAddress,
+                        ServerPort = packet.SourcePort
                     };
                 }
                 case WinDivertDirection.Outbound:
                 {
                     return new NormalizedTcpConnection()
                     {
-                        ClientIPAddress = tcpPacket.IPHeader->SrcAddr,
-                        ClientPort = tcpPacket.TcpHeader->SrcPort.ReverseBytes(),
-                        ServerIPAddress = tcpPacket.IPHeader->DstAddr,
-                        ServerPort = tcpPacket.TcpHeader->DstPort.ReverseBytes()
+                        _ipAddressVersion = packet.IPAddressVersion,
+                        ClientIPAddress = packet.SourceAddress,
+                        ClientPort = packet.SourcePort,
+                        ServerIPAddress = packet.DestinationAddress,
+                        ServerPort = packet.DestinationPort
                     };
                 }
                 default:
                 {
-                    throw new Exception($"Unknown {typeof(WinDivertDirection).Name}: {tcpPacket.WinDivertAddress.Direction}");
+                    throw new Exception($"Unknown {typeof(WinDivertDirection).Name}: {packet.Direction}");
                 }
             }
         }
