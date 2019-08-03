@@ -177,7 +177,7 @@ namespace WinDivertSharp.Wrapper.Tcp
                 return null;
             }
 
-            return new InterceptedTcp4Packet(wrapper)
+            return new InterceptedTcp4Packet(wrapper.Handle)
             {
                 _winDivertAddress = address,
                 _winDivertBuffer = buffer,
@@ -186,20 +186,20 @@ namespace WinDivertSharp.Wrapper.Tcp
             };
         }
 
-        private readonly IWinDivertWrapper<InterceptedTcp4Packet> _winDivertWrapper;
+        private readonly IntPtr _winDivertHandle;
         private WinDivertAddress _winDivertAddress;
         private WinDivertBuffer _winDivertBuffer;
         private WinDivertParseResult _winDivertParseResult;
         private uint _packetLength;
 
-        private InterceptedTcp4Packet(IWinDivertWrapper<InterceptedTcp4Packet> wrapper)
+        private InterceptedTcp4Packet(IntPtr winDivertHandle)
         {
-            _winDivertWrapper = wrapper ?? throw new ArgumentNullException(nameof(wrapper));
-
-            if (!wrapper.IsOpen)
+            if (winDivertHandle.ToInt64() < 1)
             {
-                throw new ArgumentException($"{nameof(wrapper)}.{nameof(wrapper.IsOpen)} = false");
+                throw new ArgumentNullException(nameof(winDivertHandle));
             }
+
+            _winDivertHandle = winDivertHandle;
         }
 
         /// <summary>
@@ -251,11 +251,6 @@ namespace WinDivertSharp.Wrapper.Tcp
         /// <returns>True, if the packet has been sent.</returns>
         public bool Send()
         {
-            return _winDivertWrapper.Send(this);
-        }
-
-        internal bool Send(IntPtr winDivertHandle)
-        {
             if (IsAboutToBeDropped)
             {
                 return true;
@@ -268,7 +263,7 @@ namespace WinDivertSharp.Wrapper.Tcp
                                                        WinDivertChecksumHelperParam.NoUdpChecksum);
             }
 
-            if (!WinDivert.WinDivertSend(winDivertHandle, _winDivertBuffer, _packetLength, ref _winDivertAddress))
+            if (!WinDivert.WinDivertSend(_winDivertHandle, _winDivertBuffer, _packetLength, ref _winDivertAddress))
             {
                 return false;
             }
