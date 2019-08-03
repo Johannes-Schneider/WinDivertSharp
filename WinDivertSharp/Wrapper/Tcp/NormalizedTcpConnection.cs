@@ -7,7 +7,7 @@ namespace WinDivertSharp.Wrapper.Tcp
     /// <summary>
     /// Represents a normalized ip/tcp connection.
     /// </summary>
-    public class NormalizedTcpConnection : IEquatable<NormalizedTcpConnection>
+    public class NormalizedTcpConnection : INormalizedTcpConnection, IEquatable<NormalizedTcpConnection>
     {
         /// <summary>
         /// The <seealso cref="IPAddress"/> of the client end.
@@ -33,9 +33,13 @@ namespace WinDivertSharp.Wrapper.Tcp
         /// The process id of the client process.
         /// </summary>
         public int ClientProcessId =>
-            new Lazy<int>(() => IPHelper.MapLocalPortToProcessId(ClientPort, _ipAddressVersion)).Value;
+            new Lazy<int>(() => IPHelper.MapLocalPortToProcessId(ClientPort, IPAddressVersion)).Value;
 
-        private IPHelper.AddressVersion _ipAddressVersion;
+        /// <summary>
+        /// The ip address version used.
+        /// </summary>
+        public IPHelper.AddressVersion IPAddressVersion { get; private set; }
+
         private int _cachedHashCode = 0;
 
         /// <summary>
@@ -56,7 +60,7 @@ namespace WinDivertSharp.Wrapper.Tcp
                 {
                     return new NormalizedTcpConnection()
                     {
-                        _ipAddressVersion = packet.IPAddressVersion,
+                        IPAddressVersion = packet.IPAddressVersion,
                         ClientIPAddress = packet.DestinationAddress,
                         ClientPort = packet.DestinationPort,
                         ServerIPAddress = packet.SourceAddress,
@@ -67,7 +71,7 @@ namespace WinDivertSharp.Wrapper.Tcp
                 {
                     return new NormalizedTcpConnection()
                     {
-                        _ipAddressVersion = packet.IPAddressVersion,
+                        IPAddressVersion = packet.IPAddressVersion,
                         ClientIPAddress = packet.SourceAddress,
                         ClientPort = packet.SourcePort,
                         ServerIPAddress = packet.DestinationAddress,
