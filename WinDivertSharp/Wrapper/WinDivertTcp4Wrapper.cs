@@ -17,6 +17,12 @@ namespace WinDivertSharp.Wrapper
         {
             Filter = filter;
             Priority = priority;
+
+            var position = 0u;
+            if (!WinDivert.WinDivertHelperCheckFilter(Filter, WinDivertLayer.Network, out var error, ref position))
+            {
+                throw new Exception($"Filter '{Filter}' is not valid: {error}");
+            }
         }
 
         public bool Open()
