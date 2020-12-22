@@ -11,6 +11,28 @@ namespace WinDivertSharp.Wrapper.Tcp
     {
         public IPHelper.AddressVersion IPAddressVersion => IPHelper.AddressVersion.IPv4;
 
+        public IPv4Header IPHeader
+        {
+            get
+            {
+                unsafe
+                {
+                    return *_winDivertParseResult.IPv4Header;
+                }
+            }
+        }
+
+        public TcpHeader TcpHeader
+        {
+            get
+            {
+                unsafe
+                {
+                    return *_winDivertParseResult.TcpHeader;
+                }
+            }
+        }
+        
         /// <summary>
         /// The <see cref="IPAddress"/> of the packets sender.
         /// </summary>
